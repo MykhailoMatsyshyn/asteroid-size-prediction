@@ -116,7 +116,11 @@ param_dict = {
     'fillna_median_columns': columns.fillna_median_columns,  # Колонки для заповнення медіаною
     'fillna_unknown_columns': columns.fillna_unknown_columns,  # Колонки для заповнення "Unknown"
     'fillna_not_hazardous_columns': columns.fillna_not_hazardous_columns,  # Колонки для заповнення "N"
-    'keep_na_columns': columns.keep_na_columns  # Колонки, які залишаються NaN
+    'keep_na_columns': columns.keep_na_columns,  # Колонки, які залишаються NaN
+    'fillna_median_values': {
+    col: ds[col].median() for col in columns.fillna_median_columns
+}
+
 }
 
 # Збереження параметрів у файл `param_dict.pickle`
@@ -170,7 +174,6 @@ from utils.plotting_utils import (
     plot_learning_curve,
     plot_error_distribution
 )
-
 
 # 1. Графік прогнозованих значень проти фактичних
 plot_actual_vs_predicted(y_test, y_pred, "models/logs/y_test_vs_y_pred.png")
