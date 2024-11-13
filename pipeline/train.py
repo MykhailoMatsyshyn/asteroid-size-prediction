@@ -4,10 +4,10 @@ import os
 import pickle
 import pandas as pd
 import numpy as np
-from sklearn import metrics
+from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 from sklearn.model_selection import train_test_split
 from xgboost import XGBRegressor
-
+import matplotlib.pyplot as plt
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from configs import columns
@@ -104,7 +104,7 @@ for col in columns.outlier_columns:
 print(f"Після видалення аномалій, кількість рядків: {ds.shape[0]}")
 
 
-################## save parameters
+################## Save Parameters
 
 # Підготовка словника для збереження параметрів
 param_dict = {
@@ -136,4 +136,74 @@ X = ds[columns.X_columns]
 y = ds[columns.y_column]
 
 # Розділяємо дані на тренувальний і тестовий набір у співвідношенні 90:10
-X_train, X_test, y_train, y_test = train_test_split(X, y, train_size=0.9)
+X_train, X_test, y_train, y_test = train_test_split(X, y, train_size=0.9, random_state=42)
+
+# Ініціалізація моделі XGBRegressor із найкращими гіперпараметрами
+model = XGBRegressor(**model_best_hyperparameters.params, random_state=42)
+model.fit(X_train, y_train)
+
+# Передбачення на тестових даних
+y_pred = model.predict(X_test)
+
+# Обчислення метрик
+mse = mean_squared_error(y_test, y_pred)
+rmse = np.sqrt(mse)
+mae = mean_absolute_error(y_test, y_pred)
+r2 = r2_score(y_test, y_pred)
+
+# Збереження метрик у файл
+os.makedirs("models/logs", exist_ok=True)
+with open("models/logs/evaluation_metrics.txt", "w") as f:
+    f.write(f"Mean Squared Error (MSE): {mse}\n")
+    f.write(f"Root Mean Squared Error (RMSE): {rmse}\n")
+    f.write(f"Mean Absolute Error (MAE): {mae}\n")
+    f.write(f"R-squared (R^2): {r2}\n")
+
+
+#################################### Графіки ####################################
+
+from utils.plotting_utils import (
+    plot_actual_vs_predicted,
+    plot_residuals,
+    plot_feature_importances,
+    plot_cooks_distance,
+    plot_learning_curve,
+    plot_error_distribution
+)
+
+
+# 1. Графік прогнозованих значень проти фактичних
+plot_actual_vs_predicted(y_test, y_pred, "models/logs/y_test_vs_y_pred.png")
+
+# 2. Графік залишків
+plot_residuals(y_test, y_pred, "models/logs/residual_plot.png")
+
+# 3. Важливість ознак
+plot_feature_importances(model.feature_importances_, columns.X_columns, "models/logs/feature_importances.png")
+
+# 4. Cook's Distance
+plot_cooks_distance(y_test, y_pred, "models/logs/cooks_distance.png")
+
+# 5. Крива навчання
+plot_learning_curve(XGBRegressor(**model_best_hyperparameters.params), X, y, "models/logs/learning_curve.png")
+
+# 6. Розподіл помилок
+# errors = abs(y_test - y_pred)
+# plot_error_distribution(errors, "models/logs/error_distribution.png")
+
+# # 6. Розподіл помилок
+# errors = abs(y_test - y_pred)
+
+# plt.figure(figsize=(8, 6))
+# sns.histplot(errors, kde=True, bins=30, color='orange')
+# plt.xlabel('Абсолютна помилка')
+# plt.ylabel('Частота')
+# plt.title('Розподіл помилок')
+# plt.savefig('models/logs/error_distribution.png')  # Збереження графіка
+# plt.close()
+
+# Збереження моделі
+filename = 'models/finalized_model.sav'
+pickle.dump(model, open(filename, 'wb'))
+
+###########################################################################################
